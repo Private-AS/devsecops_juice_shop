@@ -1,0 +1,4 @@
+data/static/codefixes/
+test/
+*.spec.ts
+*.test.ts
