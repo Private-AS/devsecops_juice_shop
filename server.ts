@@ -185,6 +185,21 @@ function configureApp (app: ReturnType<typeof express>, seq: typeof sequelize) {
   /* Security middleware */
   app.use(helmet.noSniff())
   app.use(helmet.frameguard())
+
+  app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }))
+  app.use(helmet.referrerPolicy({ policy: 'no-referrer' }))
+  app.use(
+    helmet.contentSecurityPolicy({
+      useDefaults: true,
+      directives: {
+        'upgrade-insecure-requests': null
+      }
+    })
+  )
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    next()
+  })
   // app.use(helmet.xssFilter()); // = no protection from persisted XSS via RESTful API
   app.disable('x-powered-by')
   app.use(featurePolicy({
