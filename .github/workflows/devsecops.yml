@@ -177,3 +177,31 @@ jobs:
             name: trivy-report
             path: trivy.json
             if-no-files-found: error
+
+  publish:
+      name: "Publish image to ghcr.io"
+      runs-on: ubuntu-latest
+      needs: [build, trivy]
+      if: github.ref == 'refs/heads/master'
+      permissions:
+        contents: read
+        packages: write
+      steps:
+        - name: Download image artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: juice-shop-image
+
+        - name: Ensure zstd is available
+                run: sudo apt-get update && sudo apt-get install -y zstd
+  
+        - name: Load image
+          run: zstd -d image.tar.zst -o image.tar && docker image load -i image.tar
+  
+        - name: Log in to ghcr.io
+          run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  
+        - name: Tag and push
+          run: |
+            docker tag juice-shop:latest ghcr.io/${{ github.repository_owner }}/juice-shop:latest
+            docker push ghcr.io/${{ github.repository_owner }}/juice-shop:latest
