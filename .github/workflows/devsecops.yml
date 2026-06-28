@@ -127,6 +127,7 @@ jobs:
       - name: Run Nikto
         run: |
           mkdir -p output
+          chmod 777 output
           docker run --rm --network host \
             -v "$PWD/output:/output" \
             ghcr.io/sullo/nikto:latest \
