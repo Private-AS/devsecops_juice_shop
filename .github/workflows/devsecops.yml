@@ -193,7 +193,7 @@ jobs:
             name: juice-shop-image
 
         - name: Ensure zstd is available
-                run: sudo apt-get update && sudo apt-get install -y zstd
+          run: sudo apt-get update && sudo apt-get install -y zstd
   
         - name: Load image
           run: zstd -d image.tar.zst -o image.tar && docker image load -i image.tar
