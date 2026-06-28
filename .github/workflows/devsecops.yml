@@ -203,5 +203,5 @@ jobs:
   
         - name: Tag and push
           run: |
-            docker tag juice-shop:latest ghcr.io/${{ github.repository_owner }}/juice-shop:latest
-            docker push ghcr.io/${{ github.repository_owner }}/juice-shop:latest
+            docker tag juice-shop:latest ghcr.io/private-as/juice-shop:latest
+            docker push ghcr.io/private-as/juice-shop:latest
