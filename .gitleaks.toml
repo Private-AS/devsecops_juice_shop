@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and known public values"
+paths = [
+  '''(^|/)test/''',
+  '''\.spec\.ts$''',
+]
+regexes = [
+  '''0x36435796Ca9be2bf150CE0dECc2D8Fab5C4d6E13''',
+]
