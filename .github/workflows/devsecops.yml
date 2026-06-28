@@ -56,4 +56,86 @@ jobs:
             https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
           tar -C /tmp -xzf /tmp/gitleaks.tar.gz gitleaks
           /tmp/gitleaks dir -v .
+
+  build:
+    name: "Build the container"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
   
+      - name: Remove encrypted files before build
+        run: rm -f data/static/users.yml encryptionkeys/jwt.priv
+  
+      - name: Build image
+        run: docker build -t juice-shop:latest .
+        
+      - name: Ensure zstd is available
+        run: sudo apt-get update && sudo apt-get install -y zstd
+  
+      - name: Export image to tarball
+        run: docker image save juice-shop:latest | zstd -o image.tar.zst
+  
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: juice-shop-image
+          path: image.tar.zst
+          if-no-files-found: error
+
+  dast:
+    name: "DAST: nikto"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install git-crypt
+        run: sudo apt-get update && sudo apt-get install -y git-crypt
+
+      - name: Unlock git-crypt
+        run: echo "$GIT_CRYPT_KEY" | base64 -d | git-crypt unlock /dev/stdin
+        env:
+          GIT_CRYPT_KEY: ${{ secrets.GIT_CRYPT_KEY }}
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: juice-shop-image
+
+      - name: Load image
+        run: zstd -d image.tar.zst -o image.tar && docker image load -i image.tar
+
+      - name: Start the application
+        run: |
+          docker run -d --name juice-shop -p 3000:3000 \
+            -v "$PWD/data/static/users.yml:/juice-shop/data/static/users.yml:ro" \
+            -v "$PWD/encryptionkeys/jwt.priv:/juice-shop/encryptionkeys/jwt.priv:ro" \
+            juice-shop:latest
+
+      - name: Wait for the app to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/rest/admin/application-version > /dev/null; then
+              echo "App is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "App did not start in time"; docker logs juice-shop; exit 1
+
+      - name: Run Nikto
+        run: |
+          mkdir -p output
+          docker run --rm --network host \
+            -v "$PWD/output:/output" \
+            ghcr.io/sullo/nikto:latest \
+            -h http://localhost:3000 -o /output/nikto.json -Format json -Tuning x6
+
+      - name: Upload Nikto report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nikto-report
+          path: output/nikto.json
+          if-no-files-found: error
